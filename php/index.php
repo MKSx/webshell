@@ -200,7 +200,8 @@ $wShell->on('start-upload', function($args, $len) use ($wShell){
 		return;
 	}
 	$info = (object) pathinfo($args);
-	if(!isset($info->basename) || strlen($info->basename)){
+
+	if(!isset($info->basename) || strlen($info->basename) < 1){
 		$wShell->setResponse('Não foi informado o nome do arquivo', 400);
 		return;
 	}
@@ -236,7 +237,7 @@ $wShell->on('upload-block', function($args, $len) use ($wShell){
 		$wShell->setResponse("Não foi possível abrir o arquivo '".$_SESSION['upload_tmp']."'", 500);
 		return;
 	}
-	fwrite($file, $args);
+	fwrite($file, @base64_decode($args));
 	fclose($file);
 	return;
 });
@@ -247,13 +248,13 @@ $wShell->on('stop-upload', function($args, $len) use ($wShell){
 		$wShell->setResponse('Nenhum upload em progresso', 200);
 		return;
 	}
-	@unlink($_SESSION['upload_tmp']);
 	if(!@rename($_SESSION['upload_tmp'], $_SESSION['upload_name'])){
 		$wShell->setResponse("Não foi possível mover o arquivo de '".$_SESSION['upload_tmp']."' para '".$_SESSION['upload_name']."'");
 	}
 	else{
 		$wShell->setResponse("Arquivo salvo em '".$_SESSION['upload_name']."'", 201);
 	}
+	@unlink($_SESSION['upload_tmp']);
 	$_SESSION['uploading'] = false;
 	$_SESSION['upload_name'] = '';
 	$_SESSION['upload_tmp'] = '';
