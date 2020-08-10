@@ -374,6 +374,9 @@ class localCMDs:
 	@staticmethod
 	def webshellping(this, args, length):
 		return 'Ping com o servidor de {} ms'.format(this._ping())
+	@staticmethod
+	def phpinfo(this, args, length):
+		return 'Acesse: {}{}'.format(this.endpoint, '&ph=734' if this.endpoint.find('?') else '?ph=734')
 
 def main():
 	ws = WebShell('admin', 'admin', 'http://localhost/cmd.php')
