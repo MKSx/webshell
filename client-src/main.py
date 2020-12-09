@@ -14,15 +14,13 @@ except AttributeError:
     pass
 
 class Config(object):
-    Url = 'http://201.76.43.10/index.php'
-    #Url = 'https://gedoc.vivo.com.br/public/media/img/gedoc2.png'
+    Url = 'http://x.x.x.x/index.php'
     User = 'user'
     Pass = 'pass'
     Key = 'sgMfr6*Q=UhpXPQcZavk#dkDyQ!Mg=C4XjqjpuMU+ebb#JUH&Hc!GZVD32GQ37mc'
 
     CookieIPValue = False
     CookieIPName = False
-    #CookieIPName = 'BIGipServer~DMZ_INTERNET_1~grupo-152'
 
     Domain = ''
 
