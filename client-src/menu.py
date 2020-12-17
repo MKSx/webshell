@@ -13,7 +13,7 @@ class Menu:
             raise argparse.ArgumentTypeError(f"Leitura de arquivo: {file} não é um arquivo válido")
 
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-        parser.add_argument('-u', '--url', help='Url da webshell', type=str, required=True)
+        parser.add_argument('-u', '--url', help='Url da webshell', type=str)
         parser.add_argument('--username', help='Nome de usuário da webshell', type=str, default=Menu.Config.User)
         parser.add_argument('--password', help='Nome de usuário da webshell', type=str, default=Menu.Config.Pass)
         parser.add_argument('--key', help='Chave usada para cifrar as mensagens enviadas e recebidas da webshell', type=str, default=Menu.Config.Key)
@@ -48,6 +48,10 @@ class Menu:
             print(f'Configuração {args.remove_config} removida com sucesso!' if Menu.RemoveConfig(args.remove_config) else f'Configuração {args.remove_config} não foi localizada')
             return False
         else:
+            if not args.url:
+                print("Informe a url da webshell com --url ou -u")
+                return False
+                
             Menu.SetConfig(args)
         
         return True
