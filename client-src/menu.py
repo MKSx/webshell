@@ -17,8 +17,8 @@ class Menu:
         parser.add_argument('--username', help='Nome de usuário da webshell', type=str, default=Menu.Config.User)
         parser.add_argument('--password', help='Nome de usuário da webshell', type=str, default=Menu.Config.Pass)
         parser.add_argument('--key', help='Chave usada para cifrar as mensagens enviadas e recebidas da webshell', type=str, default=Menu.Config.Key)
-        parser.add_argument('--bipip-name', help='Nome do Cookie do Big Ip', type=str, default=Menu.Config.CookieIPName)
-        parser.add_argument('--bipip-value', help='Valor do Cookie do Big Ip', type=str, default=Menu.Config.CookieIPValue)
+        parser.add_argument('--bigip-name', help='Nome do Cookie do Big Ip', type=str, default=Menu.Config.CookieIPName)
+        parser.add_argument('--bigip-value', help='Valor do Cookie do Big Ip', type=str, default=Menu.Config.CookieIPValue)
         parser.add_argument('--post-cmd', help='Nome da variável que irá receber os comandos na webshell', type=str, default=Menu.Config.PostCmd)
         parser.add_argument('--post-file', help='Nome da variável que irá receber o arquivo na webshell', type=str, default=Menu.Config.PostFile)
         parser.add_argument('--disable-ping', help='Desabilita o ping inicial', action='store_true')
@@ -164,6 +164,7 @@ class Menu:
 
     
     def SetConfig(args):
+        
         Menu.Config.AllowPing = args.disable_ping
         Menu.Config.User = args.username
         Menu.Config.Pass = args.password
@@ -171,7 +172,7 @@ class Menu:
         Menu.Config.PostCmd = args.post_cmd
         Menu.Config.PostFile = args.post_file
         Menu.Config.Url = args.url
-        Menu.Config.CookieIPValue = False if not(isinstance(args.bipip_value, str)) or len(args.bipip_value) < 1 else args.bipip_value
-        Menu.Config.CookieIPName = False if Menu.Config.CookieIPValue == False or len(args.bigip_name) < 1 else args.bigip_name
+        Menu.Config.CookieIPValue = False if not(isinstance(args.bigip_value, str)) or len(args.bigip_value) < 1 else args.bigip_value
+        Menu.Config.CookieIPName = False if Menu.Config.CookieIPValue == False or not args.bigip_name or len(args.bigip_name) < 1 else args.bigip_name
 
     
