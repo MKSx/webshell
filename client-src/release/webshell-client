@@ -1,13 +1,14 @@
 #!/bin/python3
 import requests, re, os, base64
-from utils import *
+#from utils import *
 from tqdm import tqdm
 import argparse, json, pingparsing, sys, os
 from colorama import Style, Fore
 from colorama import init as colorama_init
 from termcolor import colored
 from urllib.parse import urlparse
-from menu import *
+#from menu import *
+from time import sleep
 
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -653,6 +654,7 @@ class Shell(object):
                     return m
 
                 i += blocksize
+                sleep(0.05)
             
             m = stopupload()
             return m
